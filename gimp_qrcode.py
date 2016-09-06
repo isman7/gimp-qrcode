@@ -7,8 +7,9 @@ Isman Siete, 2016
 from gimpfu import *
 import qrcode
 from qrcode.constants import *
+import tempfile
 
-tmp_path = "./tmp.png"
+temp = tempfile.NamedTemporaryFile()
 
 correction_map = {0: ERROR_CORRECT_L,
                   1: ERROR_CORRECT_M,
@@ -35,9 +36,10 @@ def gimp_qrcode(initstr, size, border, version, correction, color, back):
     qr.make(fit=True)
 
     img_pil = qr.make_image(back_color=to_PIL_color(color), fill_color=to_PIL_color(back))
-    img_pil.save(tmp_path)
+    img_pil.save(temp)
 
-    img = pdb.file_png_load(tmp_path, tmp_path)
+    img = pdb.file_png_load(temp.name, temp.name)
+    temp.close()
 
     # Create a new image window
     gimp.Display(img)
