@@ -15,7 +15,7 @@ setup(
     author_email='ismaelbenito@protonmail.com',
     description='Create QR Codes inside GIMP 3.',
     install_requires=requirements,
-    # package_data={"gimp.plugins.pydev": ["pydev"]},
+    package_data={"gimp.plugins.qrcode": ["qrcode"]},
     long_description=readme,
     long_description_content_type='text/markdown',
 )
