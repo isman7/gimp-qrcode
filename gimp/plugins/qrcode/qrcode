@@ -40,20 +40,42 @@ import sys
 from typing import Tuple
 from struct import pack
 from binascii import hexlify
+from pathlib import Path
+
+from gimp.image import display_image
+import qrcode
+import numpy as np
 
 
+STATIC_PATH = (Path(__file__).parent / "static").absolute()
 HEAD_TEXT = "Create a QR Code using qrcode python library."
+
+QRCODE_ERROR_CORRECTION = {
+    0: qrcode.ERROR_CORRECT_L,
+    1: qrcode.ERROR_CORRECT_M,
+    2: qrcode.ERROR_CORRECT_Q,
+    3: qrcode.ERROR_CORRECT_H
+}
 
 
 def color_to_hex(color: Tuple[int, int, int]) -> str:
     return f"#{hexlify(pack('BBB', *color)).decode()}ff"
 
 
-def gimp_color_to_hex(color: Gimp.RGB) -> str:
+def gimp_rgb_to_hex(color: Gimp.RGB) -> str:
     r = int(255*color.r)
     g = int(255*color.g)
     b = int(255*color.b)
     return color_to_hex((r, g, b))
+
+
+def gdk_color_to_hex(color: Gdk.Color) -> str:
+    r, g, b = color.to_floats()
+    r = int(255*r)
+    g = int(255*g)
+    b = int(255*b)
+    return color_to_hex((r, g, b))
+
 
 
 class PyDevClient(Gimp.PlugIn):
@@ -121,6 +143,19 @@ class PyDevClient(Gimp.PlugIn):
         box.pack_start(label, False, False, 1)
         label.show()
 
+        grid_builder = Gtk.Builder()
+        grid_builder.add_from_file((STATIC_PATH / "grid_builder.glade").as_posix())
+        grid = grid_builder.get_object("main_grid")
+
+        grid.get_parent().remove(grid)
+
+        dialog.add(grid)
+        dialog.get_content_area().add(grid)
+        grid.show()
+
+        dialog.show_all()
+
+
         contents = None
 
         if contents is not None:
@@ -141,25 +176,30 @@ class PyDevClient(Gimp.PlugIn):
             response = dialog.run()
             if response == Gtk.ResponseType.OK:
 
-                import qrcode
-                from gimp.image import display_image
-                import numpy as np
+                text = grid_builder.get_object("text_entry").get_text()
+                version = int(grid_builder.get_object("version").get_value())
+                box_size = int(grid_builder.get_object("box_size").get_value())
+                border = int(grid_builder.get_object("border").get_value())
+                ec_level = int(grid_builder.get_object("ec_level").get_active())
+
+                # foreground = gimp_rgb_to_hex(Gimp.context_get_foreground()[-1])
+                # background = gimp_rgb_to_hex(Gimp.context_get_background()[-1])
+
+                foreground = gdk_color_to_hex(grid_builder.get_object("fcolor").get_color())
+                background = gdk_color_to_hex(grid_builder.get_object("bcolor").get_color())
 
                 qr = qrcode.QRCode(
-                    version=5,
-                    error_correction=qrcode.ERROR_CORRECT_H,
-                    box_size=10,
-                    border=4
+                    version=version,
+                    error_correction=QRCODE_ERROR_CORRECTION[ec_level],
+                    box_size=box_size,
+                    border=border
                 )
 
-                foreground = Gimp.context_get_foreground()[-1]
-                background = Gimp.context_get_background()[-1]
-
-                qr.add_data("GIMP Python Plug-ins 😎")
+                qr.add_data(text)
                 qr.make()
                 qr_img = qr.make_image(
-                    fill_color=gimp_color_to_hex(foreground),
-                    back_color=gimp_color_to_hex(background)
+                    fill_color=foreground,
+                    back_color=background
                 ).get_image()
                 qr_img_arr = np.array(qr_img.convert("RGB")).astype(np.uint8)
                 display_image(qr_img_arr)
