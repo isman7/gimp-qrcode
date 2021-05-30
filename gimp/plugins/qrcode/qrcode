@@ -21,8 +21,6 @@ from gi.repository import Gimp
 gi.require_version('GimpUi', '3.0')
 from gi.repository import GimpUi
 
-gi.require_version('Gegl', '0.4')
-from gi.repository import Gegl
 from gi.repository import GObject
 from gi.repository import GLib
 from gi.repository import Gio
@@ -30,21 +28,12 @@ from gi.repository import Gio
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
-gi.require_version('Gdk', '3.0')
-from gi.repository import Gdk
-
-gi.require_version("WebKit2", "4.0")
-from gi.repository import WebKit2 as WebKit
-
 import sys
-from typing import Tuple
-from struct import pack
-from binascii import hexlify
 from pathlib import Path
 
-from gimp.image import display_image
 import qrcode
 import numpy as np
+from gimp.image import gdk_color_to_hex, display_image
 
 
 STATIC_PATH = (Path(__file__).parent / "static").absolute()
@@ -56,26 +45,6 @@ QRCODE_ERROR_CORRECTION = {
     2: qrcode.ERROR_CORRECT_Q,
     3: qrcode.ERROR_CORRECT_H
 }
-
-
-def color_to_hex(color: Tuple[int, int, int]) -> str:
-    return f"#{hexlify(pack('BBB', *color)).decode()}ff"
-
-
-def gimp_rgb_to_hex(color: Gimp.RGB) -> str:
-    r = int(255*color.r)
-    g = int(255*color.g)
-    b = int(255*color.b)
-    return color_to_hex((r, g, b))
-
-
-def gdk_color_to_hex(color: Gdk.Color) -> str:
-    r, g, b = color.to_floats()
-    r = int(255*r)
-    g = int(255*g)
-    b = int(255*b)
-    return color_to_hex((r, g, b))
-
 
 
 class PyDevClient(Gimp.PlugIn):
@@ -155,23 +124,6 @@ class PyDevClient(Gimp.PlugIn):
 
         dialog.show_all()
 
-
-        contents = None
-
-        if contents is not None:
-            # import here when we have ensured requirements are installed.
-            import markdown
-
-            scrolled = Gtk.ScrolledWindow()
-            scrolled.set_vexpand(True)
-            box.pack_start(scrolled, True, True, 1)
-            scrolled.show()
-
-            webview = WebKit.WebView()
-            webview.load_html(markdown.markdown(contents, extensions=['fenced_code']), None)
-            scrolled.add(webview)
-            webview.show()
-
         while True:
             response = dialog.run()
             if response == Gtk.ResponseType.OK:
@@ -181,9 +133,6 @@ class PyDevClient(Gimp.PlugIn):
                 box_size = int(grid_builder.get_object("box_size").get_value())
                 border = int(grid_builder.get_object("border").get_value())
                 ec_level = int(grid_builder.get_object("ec_level").get_active())
-
-                # foreground = gimp_rgb_to_hex(Gimp.context_get_foreground()[-1])
-                # background = gimp_rgb_to_hex(Gimp.context_get_background()[-1])
 
                 foreground = gdk_color_to_hex(grid_builder.get_object("fcolor").get_color())
                 background = gdk_color_to_hex(grid_builder.get_object("bcolor").get_color())
@@ -216,8 +165,6 @@ class PyDevClient(Gimp.PlugIn):
                     Gimp.PDBStatusType.CANCEL,
                     GLib.Error()
                 )
-
-        # th.terminate()
 
         return procedure.new_return_values(Gimp.PDBStatusType.SUCCESS, GLib.Error())
 
